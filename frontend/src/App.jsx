@@ -3,37 +3,58 @@ import "./App.css";
 
 function App()
 {
-  // store the entered ingredients and connection status
+  // store the user's ingredients, generated recipes, and request status
   const [ingredients, setIngredients] = useState("");
-  const [status, setStatus] = useState("Connection has not been checked.");
-  const [isChecking, setIsChecking] = useState(false);
+  const [recipes, setRecipes] = useState([]);
+  const [status, setStatus] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  async function checkConnection()
+  async function generateRecipes(event)
   {
-    setIsChecking(true);
-    setStatus("Checking connection...");
+    event.preventDefault();
+
+    setRecipes([]);
+    setStatus("Generating recipe ideas...");
+    setIsLoading(true);
 
     try
     {
-      // request the health message from our backend
-      const response = await fetch("http://localhost:3001/api/health");
+      // send the ingredients to our backend
+      const response = await fetch("http://localhost:3001/api/recipes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          ingredients: ingredients
+        })
+      });
+
+      const data = await response.json();
 
       if (!response.ok)
       {
-        throw new Error("backend request failed");
+        throw new Error(data.error || "Could not generate recipes.");
       }
 
-      const data = await response.json();
-      setStatus(data.message);
+      setRecipes(data.recipes);
+
+      if (data.recipes.length === 0)
+      {
+        setStatus("No suitable recipes found. Try different ingredients.");
+      }
+      else
+      {
+        setStatus("");
+      }
     }
-    catch
+    catch (error)
     {
-      // show a helpful message if the request fails
-      setStatus("Could not connect. Make sure the backend is running.");
+      setStatus("Request failed: " + error.message);
     }
     finally
     {
-      setIsChecking(false);
+      setIsLoading(false);
     }
   }
 
@@ -42,26 +63,51 @@ function App()
       <h1>AI Fridge Meal Planner</h1>
       <p>Find meal ideas using ingredients you already have.</p>
 
-      <label htmlFor="ingredients">Available ingredients</label>
+      <form onSubmit={generateRecipes}>
+        <label htmlFor="ingredients">Available ingredients</label>
 
-      <textarea
-        id="ingredients"
-        placeholder="Example: chicken, rice, spinach"
-        value={ingredients}
-        onChange={(event) => setIngredients(event.target.value)}
-      />
+        <textarea
+          id="ingredients"
+          placeholder="Example: eggs, spinach, cheese"
+          value={ingredients}
+          onChange={(event) => setIngredients(event.target.value)}
+          maxLength={2000}
+          required
+        />
 
-      <button
-        type="button"
-        onClick={checkConnection}
-        disabled={isChecking}
-      >
-        {isChecking ? "Checking..." : "Check connection"}
-      </button>
+        <button
+          type="submit"
+          disabled={isLoading || ingredients.trim().length === 0}
+        >
+          {isLoading ? "Generating..." : "Generate recipes"}
+        </button>
+      </form>
 
       <p className="status" role="status">
         {status}
       </p>
+
+      {/* display each recipe returned by the backend */}
+      {recipes.map((recipe, index) => (
+        <article className="recipe-card" key={index}>
+          <h2>{recipe.name}</h2>
+          <p>Estimated cooking time: {recipe.cookingTime} minutes</p>
+
+          <h3>Ingredients</h3>
+          <ul>
+            {recipe.ingredients.map((ingredient, ingredientIndex) => (
+              <li key={ingredientIndex}>{ingredient}</li>
+            ))}
+          </ul>
+
+          <h3>Instructions</h3>
+          <ol>
+            {recipe.instructions.map((step, stepIndex) => (
+              <li key={stepIndex}>{step}</li>
+            ))}
+          </ol>
+        </article>
+      ))}
     </main>
   );
 }
