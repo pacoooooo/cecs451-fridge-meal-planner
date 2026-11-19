@@ -1,0 +1,18 @@
+/* include padding and borders when calculating element sizes */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 20px;
+  background-color: #f2f6f2;
+  color: #26382d;
+  font-family: Arial, sans-serif;
+  line-height: 1.5;
+}
+
+button,
+textarea {
+  font: inherit;
+}
