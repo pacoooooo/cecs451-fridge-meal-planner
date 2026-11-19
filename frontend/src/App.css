@@ -63,3 +63,30 @@ button:disabled
   border-top: 1px solid #d7e3d9;
   overflow-wrap: anywhere;
 }
+/* Meal preference controls */
+.filter-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #9aad9e;
+  border-radius: 6px;
+  background: white;
+  color: inherit;
+  font: inherit;
+}
+.filter-note {
+  font-size: 0.875rem;
+  color: #46594b;
+}
+.results-summary {
+  padding: 12px;
+  border-radius: 6px;
+  background: #edf5ee;
+}
+@media (max-width: 520px) {
+  .filter-row { grid-template-columns: 1fr; gap: 0; }
+}

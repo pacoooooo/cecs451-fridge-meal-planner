@@ -28,6 +28,9 @@ function App()
   // keep the entered ingredients, recipes, and request status
   const [ingredients, setIngredients] = useState("");
   const [recipes, setRecipes] = useState([]);
+  const [maxCookingTime, setMaxCookingTime] = useState("");
+  const [diet, setDiet] = useState("none");
+  const [appliedFilters, setAppliedFilters] = useState(null);
   const [status, setStatus] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -41,6 +44,7 @@ function App()
     }
 
     setRecipes([]);
+    setAppliedFilters(null);
     setStatus("Generating recipe ideas...");
     setIsLoading(true);
 
@@ -55,7 +59,11 @@ function App()
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ ingredients: ingredients }),
+        body: JSON.stringify({
+          ingredients,
+          diet,
+          maxCookingTime: maxCookingTime === "" ? null : Number(maxCookingTime)
+        }),
         signal: controller.signal
       });
 
@@ -78,8 +86,9 @@ function App()
       }
 
       setRecipes(data.recipes);
+      setAppliedFilters({ diet, maxCookingTime });
       setStatus(data.recipes.length === 0
-        ? "No suitable recipes found. Try different ingredients."
+        ? (data.message || "No suitable recipes found. Try more ingredients or a longer cooking time.")
         : "");
     }
     catch (error)
@@ -122,8 +131,46 @@ function App()
           value={ingredients}
           onChange={(event) => setIngredients(event.target.value)}
           maxLength={2000}
+          disabled={isLoading}
           required
         />
+
+        <div className="filter-row">
+          <div>
+            <label htmlFor="maxCookingTime">Maximum total time</label>
+            <select
+              id="maxCookingTime"
+              value={maxCookingTime}
+              onChange={(event) => setMaxCookingTime(event.target.value)}
+              disabled={isLoading}
+            >
+              <option value="">No time limit</option>
+              <option value="15">15 minutes</option>
+              <option value="30">30 minutes</option>
+              <option value="45">45 minutes</option>
+              <option value="60">60 minutes</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="diet">Dietary preference</label>
+            <select
+              id="diet"
+              value={diet}
+              onChange={(event) => setDiet(event.target.value)}
+              disabled={isLoading}
+              aria-describedby="diet-note"
+            >
+              <option value="none">No restriction</option>
+              <option value="vegetarian">Vegetarian</option>
+              <option value="vegan">Vegan</option>
+            </select>
+          </div>
+        </div>
+        <p id="diet-note" className="filter-note">
+          Time includes preparation and cooking and is estimated. Dietary filters
+          are basic checks; review every recipe and ingredient label for your needs.
+          These filters do not check food allergies.
+        </p>
 
         <button
           type="submit"
@@ -136,6 +183,13 @@ function App()
       <p className="status" role="status">
         {status}
       </p>
+
+      {recipes.length > 0 && appliedFilters && (
+        <p className="results-summary">
+          Showing {recipes.length} recipe{recipes.length === 1 ? "" : "s"} · {appliedFilters.diet === "none" ? "No dietary restriction" : appliedFilters.diet}
+          {appliedFilters.maxCookingTime !== "" && ` · Up to ${appliedFilters.maxCookingTime} minutes`}
+        </p>
+      )}
 
       {/* display the recipes and ingredient comparisons */}
       {recipes.map((recipe, index) => (
