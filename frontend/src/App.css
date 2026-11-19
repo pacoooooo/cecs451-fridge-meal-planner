@@ -90,3 +90,36 @@ select {
 @media (max-width: 520px) {
   .filter-row { grid-template-columns: 1fr; gap: 0; }
 }
+
+/* Saved recipes and meal ratings */
+.rating-controls {
+  margin-top: 20px;
+  padding: 16px;
+  border-radius: 8px;
+  background: #f2f6f2;
+}
+.rating-controls label { margin-top: 0; }
+.rating-controls select { margin-top: 8px; }
+.remove-meal {
+  background: white;
+  color: #7e2929;
+  border: 1px solid #b77d7d;
+}
+.saved-meals {
+  margin-top: 36px;
+  padding-top: 16px;
+  border-top: 2px solid #d7e3d9;
+}
+.saved-meal {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid #d7e3d9;
+  border-radius: 8px;
+}
+.saved-meal summary { cursor: pointer; font-weight: bold; }
+.saved-meal .recipe-card { margin-top: 12px; }
+.storage-status { color: #46594b; }
+select:focus-visible, summary:focus-visible, button:focus-visible {
+  outline: 3px solid #34794b;
+  outline-offset: 3px;
+}

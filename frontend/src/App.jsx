@@ -23,9 +23,108 @@ function isValidRecipe(recipe)
     isTextList(recipe.missingIngredients);
 }
 
+const RATINGS_KEY = "fridge-meal-planner-ratings-v1";
+
+function recipeId(recipe)
+{
+  // Include instructions so different versions of a dish keep separate ratings.
+  return JSON.stringify([
+    recipe.name.trim().toLowerCase(),
+    recipe.ingredients.map((item) => item.trim().toLowerCase()).sort(),
+    recipe.instructions,
+    recipe.cookingTime
+  ]);
+}
+
+function loadSavedMeals()
+{
+  try
+  {
+    const stored = window.localStorage.getItem(RATINGS_KEY);
+    if (stored === null) return { meals: [], message: "" };
+    const entries = JSON.parse(stored);
+    if (!Array.isArray(entries)) throw new Error("Invalid saved meals");
+
+    const meals = entries.filter((entry) =>
+      entry && isValidRecipe(entry.recipe) &&
+      Number.isInteger(entry.rating) && entry.rating >= 1 && entry.rating <= 5
+    );
+    // Ignore duplicates and recompute identities rather than trusting stored ids.
+    const unique = new Map(meals.map((entry) =>
+      [recipeId(entry.recipe), { recipe: entry.recipe, rating: entry.rating }]
+    ));
+    return {
+      meals: [...unique.values()],
+      message: meals.length !== entries.length
+        ? "Some saved meals could not be read and were skipped." : ""
+    };
+  }
+  catch
+  {
+    return { meals: [], message: "Saved meals could not be loaded from this browser." };
+  }
+}
+
+function saveMeals(meals)
+{
+  try
+  {
+    window.localStorage.setItem(RATINGS_KEY, JSON.stringify(meals));
+    return "Changes saved in this browser.";
+  }
+  catch
+  {
+    return "Browser storage is unavailable or full. Changes are available for this session only.";
+  }
+}
+
+function RecipeCard({ recipe, rating, onRate, onRemove, showMatches = true })
+{
+  return (
+    <article className="recipe-card">
+      <h3>{recipe.name}</h3>
+      <p>Estimated cooking time: {recipe.cookingTime} minutes</p>
+      {showMatches && (
+        <>
+          <p><strong>Matched ingredients:</strong> {recipe.matchedIngredients.join(", ") || "None"}</p>
+          <p><strong>Missing ingredients:</strong> {recipe.missingIngredients.join(", ") || "None"}</p>
+        </>
+      )}
+      <h4>Ingredients</h4>
+      <ul>
+        {recipe.ingredients.map((ingredient, index) => <li key={index}>{ingredient}</li>)}
+      </ul>
+      <h4>Instructions</h4>
+      <ol>
+        {recipe.instructions.map((step, index) => <li key={index}>{step}</li>)}
+      </ol>
+      <div className="rating-controls">
+        <label>
+          Your rating for {recipe.name}
+          <select value={rating || ""} onChange={(event) => onRate(recipe, Number(event.target.value))}>
+            <option value="" disabled>Rate this meal</option>
+            <option value="1">1 star — Disliked it</option>
+            <option value="2">2 stars — Below average</option>
+            <option value="3">3 stars — It was okay</option>
+            <option value="4">4 stars — Liked it</option>
+            <option value="5">5 stars — Loved it</option>
+          </select>
+        </label>
+        {onRemove && (
+          <button type="button" className="remove-meal" onClick={() => onRemove(recipe)}
+            aria-label={`Remove ${recipe.name} from saved meals`}>
+            Remove saved meal
+          </button>
+        )}
+      </div>
+    </article>
+  );
+}
+
 function App()
 {
   // keep the entered ingredients, recipes, and request status
+  const [saved, setSaved] = useState(loadSavedMeals);
   const [ingredients, setIngredients] = useState("");
   const [recipes, setRecipes] = useState([]);
   const [maxCookingTime, setMaxCookingTime] = useState("");
@@ -33,6 +132,28 @@ function App()
   const [appliedFilters, setAppliedFilters] = useState(null);
   const [status, setStatus] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  function rateMeal(recipe, rating)
+  {
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return;
+    const id = recipeId(recipe);
+    const existing = saved.meals.findIndex((entry) => recipeId(entry.recipe) === id);
+    const meals = [...saved.meals];
+    if (existing === -1) meals.unshift({ recipe, rating });
+    else meals[existing] = { recipe, rating };
+    setSaved({ meals, message: saveMeals(meals) });
+  }
+
+  function removeMeal(recipe)
+  {
+    const meals = saved.meals.filter((entry) => recipeId(entry.recipe) !== recipeId(recipe));
+    setSaved({ meals, message: saveMeals(meals) });
+  }
+
+  function ratingFor(recipe)
+  {
+    return saved.meals.find((entry) => recipeId(entry.recipe) === recipeId(recipe))?.rating;
+  }
 
   async function generateRecipes(event)
   {
@@ -191,37 +312,34 @@ function App()
         </p>
       )}
 
-      {/* display the recipes and ingredient comparisons */}
-      {recipes.map((recipe, index) => (
-        <article className="recipe-card" key={index}>
-          <h2>{recipe.name}</h2>
-          <p>Estimated cooking time: {recipe.cookingTime} minutes</p>
+      <p className="storage-status" role="status">{saved.message}</p>
 
-          <p>
-            <strong>Matched ingredients:</strong>{" "}
-            {recipe.matchedIngredients.join(", ") || "None"}
-          </p>
+      {recipes.length > 0 && (
+        <section aria-labelledby="recipe-results-heading">
+          <h2 id="recipe-results-heading">Recipe ideas</h2>
+          <p className="filter-note">After trying a meal, rate it to save the recipe.</p>
+          {recipes.map((recipe, index) => (
+            <RecipeCard key={index} recipe={recipe} rating={ratingFor(recipe)} onRate={rateMeal} />
+          ))}
+        </section>
+      )}
 
-          <p>
-            <strong>Missing ingredients:</strong>{" "}
-            {recipe.missingIngredients.join(", ") || "None"}
-          </p>
-
-          <h3>Ingredients</h3>
-          <ul>
-            {recipe.ingredients.map((ingredient, ingredientIndex) => (
-              <li key={ingredientIndex}>{ingredient}</li>
-            ))}
-          </ul>
-
-          <h3>Instructions</h3>
-          <ol>
-            {recipe.instructions.map((step, stepIndex) => (
-              <li key={stepIndex}>{step}</li>
-            ))}
-          </ol>
-        </article>
-      ))}
+      <section className="saved-meals" aria-labelledby="saved-meals-heading">
+        <h2 id="saved-meals-heading">Saved meals ({saved.meals.length})</h2>
+        <p className="filter-note">
+          Ratings and recipes are saved on this browser and device. Clearing browser
+          data removes them. Ratings do not yet affect AI recommendations.
+        </p>
+        {saved.meals.length === 0 ? (
+          <p>No saved meals yet. Generate recipes and rate a meal to save it here.</p>
+        ) : saved.meals.map((entry) => (
+          <details className="saved-meal" key={recipeId(entry.recipe)}>
+            <summary>{entry.recipe.name} · {entry.rating}/5 stars</summary>
+            <RecipeCard recipe={entry.recipe} rating={entry.rating}
+              onRate={rateMeal} onRemove={removeMeal} showMatches={false} />
+          </details>
+        ))}
+      </section>
     </main>
   );
 }
