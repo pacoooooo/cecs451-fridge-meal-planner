@@ -25,7 +25,7 @@ Open a terminal in the main project folder and run:
 
 cd backend\
 npm.cmd install\
-npm.cmd start\
+npm.cmd start
 
 
 Open a second terminal in the main project folder and run:
@@ -33,7 +33,7 @@ Open a second terminal in the main project folder and run:
 
 cd frontend\
 npm.cmd install\
-npm.cmd run dev -- --port 5173 --strictPort\
+npm.cmd run dev -- --port 5173 --strictPort
 
 
 Leave both terminals running. Open http://localhost:5173
