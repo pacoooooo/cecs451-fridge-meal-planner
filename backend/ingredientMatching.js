@@ -5,7 +5,20 @@ const aliases = {
   onions: "onion",
   carrots: "carrot",
   potatoes: "potato",
-  "chicken breasts": "chicken breast"
+  lemons: "lemon",
+  limes: "lime",
+  apples: "apple",
+  bananas: "banana",
+  avocados: "avocado",
+  cucumbers: "cucumber",
+  zucchinis: "zucchini",
+  mushrooms: "mushroom",
+  peppers: "pepper",
+  "bell peppers": "bell pepper",
+  "garlic cloves": "garlic",
+  "green onions": "scallion",
+  "chicken breasts": "chicken breast",
+  "chicken thighs": "chicken thigh"
 };
 
 function normalizeIngredient(ingredient)
