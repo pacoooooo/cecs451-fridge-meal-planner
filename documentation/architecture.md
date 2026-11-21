@@ -11,7 +11,7 @@ gemini generates meal ideas from the ingredients and preferences.
 
 ![system architecture diagram](diagramv2.png)
 
-1. the user enters ingredients and chooses the number of recipes, a cooking
+1. the user enters ingredients, optional expiration dates, a cooking
    time limit, and a dietary preference.
 2. the frontend sends this information to the backend using
    `POST /api/recipes`.
@@ -19,10 +19,11 @@ gemini generates meal ideas from the ingredients and preferences.
    includes the ingredients, preferences, and required recipe fields.
 4. gemini returns recipe names, ingredients, estimated times, and instructions
    in json, a format our code can read [3].
-5. the backend checks the response, removes recipes that fail the time or
+5. the backend validates the response, removes recipes that fail the time or
    supported dietary checks, and compares ingredients with the user's list.
-6. recipes with fewer missing ingredients appear first. the frontend displays
-   the recipes and their matched and missing ingredients.
+6. recipes using ingredients expiring within the next week receive an urgency
+   boost, with nearer dates weighted more. Ties are sorted by fewer missing
+   ingredients. The frontend displays matched and missing ingredients.
 7. the user can rate a meal to save it in the browser, change its rating, or
    remove it from saved meals.
 
@@ -34,7 +35,7 @@ gemini generates meal ideas from the ingredients and preferences.
 | `frontend/src/App.css` | controls the page layout and appearance |
 | `backend/server.js` | receives requests, calls gemini, and returns checked recipes |
 | `backend/ingredientMatching.js` | compares ingredient names and finds matched and missing ingredients |
-| `backend/dietaryChecks.js` | checks recipes against the supported vegetarian or vegan rules |
+| `backend/server.js` | validates recipes and applies the supported vegetarian or vegan checks |
 
 ## ai and data
 
@@ -43,8 +44,9 @@ the backend uses `@google/genai`. its default model is
 gemini creates the recipes. our code handles the form, recipe checks,
 ingredient matching, sorting, and ratings.
 
-ingredients come from the user. recipe ideas come from gemini, and our
-matching and dietary rules are stored in the code. recipes and ratings in
+ingredient names and optional expiration dates come from the user. recipe
+ideas come from gemini; the prototype does not use a separate recipe dataset.
+Our matching, expiration-priority, and dietary rules are stored in code. Recipes and ratings in
 saved meals stay in the same browser and device. clearing browser data
 removes them. ratings do not currently change ai recommendations.
 
@@ -62,7 +64,9 @@ the frontend runs at `http://localhost:5173`, and the backend runs at
 `http://localhost:3001`.
 
 sorting by missing ingredients helps users find meals that need fewer
-additional ingredients. it does not compare taste or nutrition.
+additional ingredients. Expiration priority is a simple seven-day ranking
+heuristic based on user-entered dates; it does not assess food safety, taste,
+or nutrition.
 
 the app needs an internet connection for new recipes. it shows an error
 message if a request fails or takes too long. cooking times are ai estimates.

@@ -125,7 +125,7 @@ function App()
 {
   // keep the entered ingredients, recipes, and request status
   const [saved, setSaved] = useState(loadSavedMeals);
-  const [ingredients, setIngredients] = useState("");
+  const [ingredients, setIngredients] = useState([{ name: "", expiresOn: "" }]);
   const [recipes, setRecipes] = useState([]);
   const [maxCookingTime, setMaxCookingTime] = useState("");
   const [diet, setDiet] = useState("none");
@@ -181,7 +181,12 @@ function App()
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          ingredients,
+          ingredients: ingredients
+            .filter((ingredient) => ingredient.name.trim())
+            .map((ingredient) => ({
+              name: ingredient.name.trim(),
+              expiresOn: ingredient.expiresOn || null
+            })),
           diet,
           maxCookingTime: maxCookingTime === "" ? null : Number(maxCookingTime)
         }),
@@ -244,17 +249,41 @@ function App()
       <p>Find meal ideas using ingredients you already have.</p>
 
       <form onSubmit={generateRecipes}>
-        <label htmlFor="ingredients">Available ingredients</label>
-
-        <textarea
-          id="ingredients"
-          placeholder="Example: eggs, spinach, cheese"
-          value={ingredients}
-          onChange={(event) => setIngredients(event.target.value)}
-          maxLength={2000}
-          disabled={isLoading}
-          required
-        />
+        <label>Available ingredients</label>
+        <p className="filter-note">Add an expiration date when you know it. Recipes using ingredients that expire sooner will appear first.</p>
+        <div className="ingredient-list">
+          {ingredients.map((ingredient, index) => (
+            <div className="ingredient-row" key={index}>
+              <label className="visually-hidden" htmlFor={`ingredient-${index}`}>Ingredient {index + 1}</label>
+              <input
+                id={`ingredient-${index}`}
+                type="text"
+                placeholder="Example: spinach"
+                value={ingredient.name}
+                maxLength={100}
+                disabled={isLoading}
+                onChange={(event) => setIngredients((current) => current.map((item, itemIndex) =>
+                  itemIndex === index ? { ...item, name: event.target.value } : item))}
+              />
+              <label className="visually-hidden" htmlFor={`expiry-${index}`}>Expiration date for ingredient {index + 1} (optional)</label>
+              <input
+                id={`expiry-${index}`}
+                type="date"
+                aria-label={`Expiration date for ingredient ${index + 1} (optional)`}
+                value={ingredient.expiresOn}
+                disabled={isLoading}
+                onChange={(event) => setIngredients((current) => current.map((item, itemIndex) =>
+                  itemIndex === index ? { ...item, expiresOn: event.target.value } : item))}
+              />
+              {ingredients.length > 1 && (
+                <button type="button" className="remove-ingredient" aria-label={`Remove ingredient ${index + 1}`}
+                  disabled={isLoading} onClick={() => setIngredients((current) => current.filter((_, itemIndex) => itemIndex !== index))}>Remove</button>
+              )}
+            </div>
+          ))}
+        </div>
+        <button type="button" className="add-ingredient" disabled={isLoading}
+          onClick={() => setIngredients((current) => [...current, { name: "", expiresOn: "" }])}>Add ingredient</button>
 
         <div className="filter-row">
           <div>
@@ -295,7 +324,7 @@ function App()
 
         <button
           type="submit"
-          disabled={isLoading || ingredients.trim().length === 0}
+          disabled={isLoading || !ingredients.some((ingredient) => ingredient.name.trim().length > 0)}
         >
           {isLoading ? "Generating..." : "Generate recipes"}
         </button>

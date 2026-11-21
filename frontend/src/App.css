@@ -33,6 +33,15 @@ textarea
   resize: vertical;
 }
 
+.ingredient-list { display: grid; gap: 10px; }
+.ingredient-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 0.55fr) auto; gap: 8px; align-items: center; }
+.ingredient-row input { width: 100%; min-width: 0; padding: 10px; border: 1px solid #9aad9e; border-radius: 6px; font: inherit; }
+.ingredient-row button, .add-ingredient { margin-top: 0; }
+.remove-ingredient { background: white; color: #7e2929; border: 1px solid #b77d7d; padding: 9px 12px; }
+.add-ingredient { margin-top: 10px; background: #edf5ee; color: #245c35; border: 1px solid #9aad9e; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+input:focus-visible { outline: 3px solid #34794b; outline-offset: 2px; }
+
 button 
 {
   margin-top: 20px;
@@ -89,6 +98,8 @@ select {
 }
 @media (max-width: 520px) {
   .filter-row { grid-template-columns: 1fr; gap: 0; }
+  .ingredient-row { grid-template-columns: 1fr 1fr; }
+  .ingredient-row .remove-ingredient { grid-column: 1 / -1; justify-self: start; }
 }
 
 /* Saved recipes and meal ratings */
