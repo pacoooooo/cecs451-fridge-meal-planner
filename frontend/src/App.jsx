@@ -1,5 +1,6 @@
 import { useState } from "react";
 import "./App.css";
+import { createRatingHistory, buildShoppingList } from "./mealHelpers";
 
 function isTextList(value)
 {
@@ -78,7 +79,7 @@ function saveMeals(meals)
   }
 }
 
-function RecipeCard({ recipe, rating, onRate, onRemove, showMatches = true })
+function RecipeCard({ recipe, rating, onRate, onRemove, showMatches = true, onToggleShopping, selectedForShopping = false })
 {
   return (
     <article className="recipe-card">
@@ -89,6 +90,13 @@ function RecipeCard({ recipe, rating, onRate, onRemove, showMatches = true })
           <p><strong>Matched ingredients:</strong> {recipe.matchedIngredients.join(", ") || "None"}</p>
           <p><strong>Missing ingredients:</strong> {recipe.missingIngredients.join(", ") || "None"}</p>
         </>
+      )}
+      {showMatches && recipe.preferenceNote && <p className="preference-note">{recipe.preferenceNote}</p>}
+      {onToggleShopping && (
+        <button type="button" className="shopping-toggle" aria-pressed={selectedForShopping}
+          onClick={() => onToggleShopping(recipe)}>
+          {selectedForShopping ? "Remove from shopping plan" : "Choose meal for shopping list"}
+        </button>
       )}
       <h4>Ingredients</h4>
       <ul>
@@ -125,6 +133,18 @@ function App()
 {
   // keep the entered ingredients, recipes, and request status
   const [saved, setSaved] = useState(loadSavedMeals);
+  const [useRatings, setUseRatings] = useState(true);
+  const [personalization, setPersonalization] = useState(null);
+  const [shoppingRecipes, setShoppingRecipes] = useState([]);
+  const [purchased, setPurchased] = useState({});
+  const shoppingList = buildShoppingList(shoppingRecipes);
+
+  function toggleShopping(recipe)
+  {
+    const id = recipeId(recipe);
+    setShoppingRecipes((current) => current.some((item) => recipeId(item) === id)
+      ? current.filter((item) => recipeId(item) !== id) : [...current, recipe]);
+  }
   const [ingredients, setIngredients] = useState([{ name: "", expiresOn: "" }]);
   const [recipes, setRecipes] = useState([]);
   const [maxCookingTime, setMaxCookingTime] = useState("");
@@ -188,6 +208,7 @@ function App()
               expiresOn: ingredient.expiresOn || null
             })),
           diet,
+          ratingHistory: useRatings ? createRatingHistory(saved.meals) : [],
           maxCookingTime: maxCookingTime === "" ? null : Number(maxCookingTime)
         }),
         signal: controller.signal
@@ -212,6 +233,9 @@ function App()
       }
 
       setRecipes(data.recipes);
+      setPersonalization(data.personalization || null);
+      setShoppingRecipes([]);
+      setPurchased({});
       setAppliedFilters({ diet, maxCookingTime });
       setStatus(data.recipes.length === 0
         ? (data.message || "No suitable recipes found. Try more ingredients or a longer cooking time.")
@@ -322,6 +346,17 @@ function App()
           These filters do not check food allergies.
         </p>
 
+        <label className="checkbox-label">
+          <input type="checkbox" checked={useRatings} disabled={isLoading}
+            onChange={(event) => setUseRatings(event.target.checked)} />
+          Use my meal ratings for recommendations
+        </label>
+        <p className="filter-note">
+          When enabled, names, ingredients, and ratings from up to 10 saved meals
+          rated above or below 3 are sent to the AI service with your request.
+          Ratings guide preferences; diet and time limits still apply.
+        </p>
+
         <button
           type="submit"
           disabled={isLoading || !ingredients.some((ingredient) => ingredient.name.trim().length > 0)}
@@ -347,17 +382,55 @@ function App()
         <section aria-labelledby="recipe-results-heading">
           <h2 id="recipe-results-heading">Recipe ideas</h2>
           <p className="filter-note">After trying a meal, rate it to save the recipe.</p>
+          <p className="preference-note">
+            {personalization?.enabled
+              ? `Used ${personalization.ratedMealsUsed} rated meal(s) as preference examples. Ingredient-based preference scores break ties after expiration priority and missing-item count.`
+              : "No rating-based preferences applied to these results. Rate meals above or below 3 to provide feedback."}
+          </p>
           {recipes.map((recipe, index) => (
-            <RecipeCard key={index} recipe={recipe} rating={ratingFor(recipe)} onRate={rateMeal} />
+            <RecipeCard key={index} recipe={recipe} rating={ratingFor(recipe)} onRate={rateMeal}
+              onToggleShopping={toggleShopping}
+              selectedForShopping={shoppingRecipes.some((item) => recipeId(item) === recipeId(recipe))} />
           ))}
         </section>
       )}
+
+      <section className="shopping-list" aria-labelledby="shopping-heading">
+        <h2 id="shopping-heading">Missing ingredients shopping list</h2>
+        <p className="filter-note">
+          Choose meals from the recipe ideas above to combine their missing ingredients.
+          Based on the inventory used for those results. Generate again after changing
+          ingredients. Quantities are in the recipe instructions; this list does not total quantities.
+        </p>
+        {shoppingRecipes.length === 0 ? <p>No meals selected yet.</p> : (
+          <>
+            <p>Selected meals: {shoppingRecipes.map((recipe) => recipe.name).join(", ")}</p>
+            {shoppingList.length === 0 ? <p>You have every listed ingredient for the selected meals.</p> : (
+              <ul className="shopping-items">
+                {shoppingList.map((item) => (
+                  <li key={item.name}>
+                    <label className="checkbox-label">
+                      <input type="checkbox" checked={Boolean(purchased[item.name])}
+                        onChange={(event) => setPurchased((current) => ({ ...current, [item.name]: event.target.checked }))} />
+                      <span className={purchased[item.name] ? "purchased" : ""}>{item.name}</span>
+                    </label>
+                    <small>For: {item.recipes.join(", ")}</small>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <button type="button" className="shopping-toggle"
+              onClick={() => { setShoppingRecipes([]); setPurchased({}); }}>Clear shopping plan</button>
+          </>
+        )}
+        <p className="filter-note">The shopping plan lasts for this page session and resets when new recipes are generated.</p>
+      </section>
 
       <section className="saved-meals" aria-labelledby="saved-meals-heading">
         <h2 id="saved-meals-heading">Saved meals ({saved.meals.length})</h2>
         <p className="filter-note">
           Ratings and recipes are saved on this browser and device. Clearing browser
-          data removes them. Ratings do not yet affect AI recommendations.
+          data removes them. Enable the ratings option above to use this feedback for future recommendations.
         </p>
         {saved.meals.length === 0 ? (
           <p>No saved meals yet. Generate recipes and rate a meal to save it here.</p>
